@@ -96,10 +96,15 @@ function CandidateSelectPage({ onSuccess }) {
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-6">
         <Card className="w-full">
           <CardHeader className="pb-4">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#e84c2b" }}>
+            <p
+              className="text-xs font-semibold uppercase tracking-widest"
+              style={{ color: "#e84c2b" }}
+            >
               Student portal
             </p>
-            <CardTitle className="text-2xl">Sign in as {selected.name}</CardTitle>
+            <CardTitle className="text-2xl">
+              Sign in as {selected.name}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={handleKeySubmit}>
@@ -116,7 +121,9 @@ function CandidateSelectPage({ onSuccess }) {
                 />
               </div>
               {keyError && (
-                <p className="text-xs" style={{ color: "#e84c2b" }}>{keyError}</p>
+                <p className="text-xs" style={{ color: "#e84c2b" }}>
+                  {keyError}
+                </p>
               )}
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting ? "Signing in…" : "Sign in"}
@@ -125,7 +132,11 @@ function CandidateSelectPage({ onSuccess }) {
                 type="button"
                 variant="ghost"
                 className="w-full"
-                onClick={() => { setSelected(null); setKey(""); setKeyError(null); }}
+                onClick={() => {
+                  setSelected(null);
+                  setKey("");
+                  setKeyError(null);
+                }}
               >
                 Back
               </Button>
@@ -140,11 +151,18 @@ function CandidateSelectPage({ onSuccess }) {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-10">
       <div className="mb-6 text-center">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest" style={{ color: "#e84c2b" }}>
+        <p
+          className="mb-2 text-xs font-semibold uppercase tracking-widest"
+          style={{ color: "#e84c2b" }}
+        >
           Student portal
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Select your account</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Pick your name to continue.</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Select your account
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Pick your name to continue.
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -152,7 +170,9 @@ function CandidateSelectPage({ onSuccess }) {
           <p className="text-center text-sm text-muted-foreground">Loading…</p>
         )}
         {fetchError && (
-          <p className="text-center text-sm" style={{ color: "#e84c2b" }}>{fetchError}</p>
+          <p className="text-center text-sm" style={{ color: "#e84c2b" }}>
+            {fetchError}
+          </p>
         )}
         {!loading && !fetchError && candidates.length === 0 && (
           <p className="text-center text-sm text-muted-foreground">
@@ -168,6 +188,9 @@ function CandidateSelectPage({ onSuccess }) {
                 </div>
                 <div>
                   <p className="font-medium">{c.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {c.phone?.slice(0, 7)}XXX
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {c.courseName ?? "No course assigned"}
                   </p>
