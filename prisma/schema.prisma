@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+//  User
+//  Role ADMIN  → can create courses, add lectures, register students
+//  Role STUDENT → enrolled in courses, receives AI voice calls per lecture
+// ─────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String   @unique
+  phone     String
+  role      UserRole @default(STUDENT)
+  cohort    String?
+  createdAt DateTime @default(now())
+
+  enrollments       CourseEnrollment[]
+  lectureProgresses LectureProgress[]
+}
+
+// ─────────────────────────────────────────────
+//  Course
+//  Top-level container created by an admin.
+//  A student can be enrolled in multiple courses.
+// ─────────────────────────────────────────────
+model Course {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  lectures    Lecture[]
+  enrollments CourseEnrollment[]
+}
+
+// ─────────────────────────────────────────────
+//  Lecture
+//  Belongs to exactly one Course.
+//  `order` controls display sequence within the course.
+//  `youtubeUrl`   → embedded video on the student player page
+//  `transcription` → full audio transcript (pasted by admin)
+// ─────────────────────────────────────────────
+model Lecture {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  youtubeUrl    String?
+  transcription String?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  questions         LectureQuestion[]
+  lectureProgresses LectureProgress[]
+}
+
+// ─────────────────────────────────────────────
+//  CourseEnrollment  (join table: User ↔ Course)
+//  Created by admin when registering a student.
+//  One record = one student enrolled in one course.
+//  A student can be enrolled in multiple courses via multiple records.
+// ─────────────────────────────────────────────
+model CourseEnrollment {
+  id         String   @id @default(cuid())
+  enrolledAt DateTime @default(now())
+
+  userId   String
+  courseId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+// ─────────────────────────────────────────────
+//  LectureProgress
+//  Tracks per-student lecture progress (STARTED → COMPLETED).
+//  Created when a student selects a lecture; updated on completion.
+//  VoiceCalls are owned by this record — not directly by User or Lecture.
+// ─────────────────────────────────────────────
+model LectureProgress {
+  id          String                @id @default(cuid())
+  status      LectureProgressStatus @default(STARTED)
+  startedAt   DateTime              @default(now())
+  completedAt DateTime?
+
+  userId    String
+  lectureId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lecture   Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  voiceCalls VoiceCall[]
+
+  @@unique([userId, lectureId])
+}
+
+// ─────────────────────────────────────────────
+//  VoiceCall
+//  One record per LectureProgress (student × lecture).
+//  Created automatically when a student marks a lecture complete.
+//  Tracks the full lifecycle of the AI phone verification call.
+//  Access user/lecture via lectureProgress relation.
+//
+//  Status flow:
+//    QUEUED → IN_CALL → VERIFIED
+//                     ↘ FAILED
+// ─────────────────────────────────────────────
+model VoiceCall {
+  id     String     @id @default(cuid())
+  status CallStatus @default(QUEUED)
+
+  // Call provider details (e.g. Bland AI, Vapi, Twilio)
+  callProvider  String?
+  callSessionId String?
+
+  // Result populated after the call completes
+  transcript        String?
+  recording         String?
+  summary           String?
+  comprehensionScore Int?
+  weakTopics        String[]
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  lectureProgressId String
+  lectureProgress   LectureProgress @relation(fields: [lectureProgressId], references: [id], onDelete: Cascade)
+
+  @@unique([lectureProgressId])
+}
+
+// ─────────────────────────────────────────────
+//  LectureQuestion
+//  AI-generated quiz questions for a lecture.
+//  Generated once on first call, reused for future calls.
+// ─────────────────────────────────────────────
+model LectureQuestion {
+  id        String   @id @default(cuid())
+  question  String
+  expected  String
+  followUp  String
+  createdAt DateTime @default(now())
+
+  lectureId String
+  lecture   Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+//  Enums
+// ─────────────────────────────────────────────
+enum UserRole {
+  ADMIN
+  STUDENT
+}
+
+enum LectureProgressStatus {
+  STARTED
+  COMPLETED
+}
+
+enum CallStatus {
+  QUEUED // call record created, waiting for Bolna pickup
+  RESCHEDULED // triggered outside allowed hours, will retry
+  INITIATED // call initiated from Bolna's servers
+  RINGING // ringing at the destination
+  IN_PROGRESS // answered and conversation is active
+  CALL_DISCONNECTED // call has been disconnected
+  COMPLETED // all post-call processing finished
+}
